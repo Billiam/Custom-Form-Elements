@@ -1,5 +1,5 @@
 /*
-Custom Form Elements v0.9
+Custom Form Elements v0.10
 
 http://github.com/karbassi/Custom-Form-Elements
 
@@ -87,7 +87,7 @@ Example:
                     className = [self.options.uniqueClassName, type, disabled, readonly],
                     span = '<span id="' + this.id + '_cf" class="' + className.join(' ').replace(/^(\s|\u00A0)+|(\s|\u00A0)+$/g, '') + '"' + (type !== 'select' ? ' ' + style + ' ' : '') + '>' + selected + '</span>';
 
-                $(span).insertBefore(this);
+                $(this).before(span);
             });
 
             self.bind();
@@ -140,8 +140,9 @@ Example:
 
                 if ($.browser.msie) {
                     $('label[for=' + this.id + ']').bind('click', function(){
-                        $('input[id=' + this.htmlFor + ']')[0].checked = true;
-                        self.reset();
+                        var mouseup = jQuery.Event("mouseup");
+                        mouseup.which = 1;
+                        $('span#' + $(this).attr('for') + '_cf').trigger(mouseup);
                     });
                 }
             });
@@ -155,7 +156,7 @@ Example:
         },
 
         mousedown: function(e, el) {
-            if (e.button !== 0) { return; } // Only respond to left mouse clicks
+            if (e.which !== 1) { return; } // Only respond to left mouse clicks
 
             var self = this,
                 input = $('#' + el.id.split('_cf').shift())[0],
@@ -165,13 +166,18 @@ Example:
         },
 
         mouseup: function(e, el) {
-            if (e.button !== 0) { return; } // Only respond to left mouse clicks
+            if (e.which !== 1) { return; } // Only respond to left mouse clicks
 
             var self = this,
                 input = $('#' + el.id.split('_cf').shift())[0];
 
             el.style[bgp] = input.checked && input.type === 'checkbox' ? '' : "0 -" + self.options[input.type + h] * 2 + 'px';
 
+            if (input.type == 'radio' && input.checked === true) {
+                // Prevent unselecting radio option
+                return;
+            }
+            
             $('input[type=radio][name=' + input.name + ']').not('#' + input.id).each(function(){
                 $('#' + this.id + '_cf')[0].style[bgp] = '';
             });
