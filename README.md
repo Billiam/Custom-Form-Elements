@@ -19,7 +19,6 @@ Note
 -----
 
 * Call once your document is loaded. If you are dynamically loading content, use the `repaint` function.
-* The `input` file should not be wrapped with the `label` tag.
 * The sprite order from top to bottom is:
   1. unchecked
   2. unchecked-mousedown
