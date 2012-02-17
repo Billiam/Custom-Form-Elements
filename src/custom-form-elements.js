@@ -75,21 +75,24 @@ Example:
             var self = this;
             $('input.' + self.options.styled + '[type=checkbox],input.' + self.options.styled + '[type=radio],input.' + self.options.styled + '[type=file],select.' + self.options.styled).each(function(){
 
-                var existing = $('#' + this.id + '_cf.' + self.options.uniqueClassName);
-                if (existing.length > 0) {
-                    existing.remove();
+                var $this = $(this);                
+                if ($this.data('_cf')) {
+                    $this.data('_cf').remove();
                 }
 
-                var selected = $(this).find('option:selected').text(),
+                var selected = $this.find('option:selected').text(),
                     type = this.type === 'select-one' ? 'select' : this.type,
                     isStatic = this.type === 'select-one' || this.type === 'file',
                     style = !isStatic ? ' style="background-position:0 -' + self.options[this.type + 'Height'] * (this.checked ? 2 : 0) + 'px;" ' : '',
                     isDisabled = this.disabled ? 'disabled' : '',
                     isReadonly = this.getAttribute('readonly') ? 'readonly' : '',
                     className = (self.options.uniqueClassName + ' ' + type + ' ' + isDisabled + ' ' + isReadonly + ' ').replace(/^(\s|\u00A0)+|(\s|\u00A0)+$/g, ''),
-                    span = '<span id="' + this.id + '_cf" class="' + className + '"' + style + '>' + selected + '</span>';
-
-                $(this).before(span);
+                    $span = $('<span id="' + this.id + '_cf" class="' + className + '"' + style + '>' + selected + '</span>');
+                
+                $this.data('_cf', $span); 
+                $span.data('element', $this);
+                
+                $this.before($span);
             });
 
             self.bind();
@@ -128,8 +131,9 @@ Example:
             // Handle label clicks
             query = 'input.' + self.options.styled;
             $(query).each(function(){
-
-                if ($('span#' + this.id + '_cf.disabled').length) {
+                var $this = $(this);        
+                var $span = $this.data('_cf');
+                if ($span.is('.disabled')) {
                     return;
                 }
 
@@ -140,12 +144,25 @@ Example:
                         self.reset();
                     });
 
-                if ($.browser.msie && $.browser.version < 9) {
-                    $('label[for=' + this.id + ']').bind('click', function(){
-                        var mouseup = jQuery.Event('mouseup');
-                        mouseup.which = 1;
-                        $('span#' + $(this).attr('for') + '_cf').trigger(mouseup);
-                    });
+                var $label = $this.closest('label');
+        
+                if ( ! $label.length) {
+                    $label = $('label[for=' + this.id + ']');
+                }
+                
+                $this.data('label', $label);
+                $span.data('label', $label);
+        
+                if ($label.length) {
+                    $label.data('element', $this);
+                    $label.toggleClass('selected', this.checked);
+                    if ($.browser.msie && $.browser.version < 9) {
+                        $label.bind('click', function(){
+                            var mouseup = jQuery.Event('mouseup');
+                            mouseup.which = 1;
+                            $(this).data('element').data('_cf').trigger(mouseup);
+                        });
+                    }
                 }
             });
         },
@@ -153,7 +170,11 @@ Example:
         reset: function(){
             var self = this;
             $('input.' + self.options.styled).each(function(k, v) {
-                $('#' + this.id + '_cf')[0].style['backgroundPosition'] = !this.checked ? '' : '0 -' + self.options[this.type + 'Height'] * 2 + 'px';
+                var $this = $(this);
+                $this.data('_cf').css('backgroundPosition', (!this.checked) ? '' : "0 -" + self.options[this.type + 'Height'] * 2 + 'px');
+                if ($this.data('label')) {
+                    $this.data('label').toggleClass('selected', this.checked);
+                }
             });
         },
 
@@ -161,27 +182,34 @@ Example:
             if (e.which !== 1) { return; } // Only respond to left mouse clicks
 
             var self = this,
-                input = $('#' + el.id.split('_cf').shift())[0],
+                $el = $(el),
+                input = $el.data('element').get(0),
                 offset = self.options[input.type + 'Height'] * (input.checked ? 3 : 1);
-
-            el.style['backgroundPosition'] = '0 -' + offset + 'px';
+       
+                $el.css('backgroundPosition', '0 -' + offset + 'px')
+                   .data('label')
+                   .toggleClass('selected', input.checked);
         },
 
         mouseup: function(e, el) {
             if (e.which !== 1) { return; } // Only respond to left mouse clicks
-
+        
             var self = this,
-                input = $('#' + el.id.split('_cf').shift())[0];
+                $el = $(el),
+                input = $el.data('element').get(0);
 
-            el.style['backgroundPosition'] = input.checked && input.type === 'checkbox' ? '' : '0 -' + self.options[input.type + 'Height'] * 2 + 'px';
-
+            $el.css('backgroundPosition', (input.checked && input.type === 'checkbox') ? '' : "0 -" + self.options[input.type + 'Height'] * 2 + 'px');
+            $el.data('label').toggleClass('selected', input.checked);
+            
             if (input.type == 'radio' && input.checked === true) {
                 // Prevent unselecting radio option
                 return;
             }
 
-            $('input[type=radio][name=' + input.name + ']').not('#' + input.id).each(function(){
-                $('#' + this.id + '_cf')[0].style['backgroundPosition'] = '';
+            $('input[type=radio][name=' + input.name + ']', $(input).parents('form:first')).not(input).each(function(){
+                var $this = $(this);
+                $this.data('_cf').css('backgroundPosition', '');
+                $this.data('label').removeClass('selected');
             });
 
             input.checked = !input.checked;
